@@ -2,11 +2,15 @@ using FluentAssertions;
 using Xunit;
 
 namespace IntroductionToEventSourcing.GettingStateFromEvents.Immutable;
+
 using static ShoppingCartEvent;
 
 // EVENTS
 public abstract record ShoppingCartEvent
 {
+    // This won't allow external inheritance
+    private ShoppingCartEvent() { }
+
     public record ShoppingCartOpened(
         Guid ShoppingCartId,
         Guid ClientId
@@ -31,9 +35,6 @@ public abstract record ShoppingCartEvent
         Guid ShoppingCartId,
         DateTime CanceledAt
     ): ShoppingCartEvent;
-
-    // This won't allow external inheritance
-    private ShoppingCartEvent(){}
 }
 
 // VALUE OBJECTS
@@ -55,15 +56,13 @@ public record ShoppingCart(
 {
     public static ShoppingCart From(IEnumerable<ShoppingCartEvent> events)
     {
-        var shoppingCart = new ShoppingCart(default,default,default,Array.Empty<PricedProductItem>());
-        foreach (var shoppingCartEvent in events)
-        {
-            shoppingCart = shoppingCart.Apply(shoppingCartEvent);
-        }
+        var shoppingCart = new ShoppingCart(default, default, default, Array.Empty<PricedProductItem>());
+        foreach (var shoppingCartEvent in events) shoppingCart = shoppingCart.Apply(shoppingCartEvent);
         return shoppingCart;
     }
 
-    public ShoppingCart Apply(ShoppingCartEvent @event){
+    public ShoppingCart Apply(ShoppingCartEvent @event)
+    {
         switch (@event)
         {
             case ProductItemAddedToShoppingCart productItemAddedToShoppingCart:
@@ -89,7 +88,7 @@ public record ShoppingCart(
                     new PricedProductItem(productItemProductId, newQuantity,
                         productItemRemovedFromShoppingCart.ProductItem.UnitPrice)
                 }.Concat(productItemsWithoutOld).ToArray();
-                
+
                 return this with { ProductItems = productItemsUpdated };
             case ShoppingCartCanceled shoppingCartCanceled:
                 return this with
@@ -99,7 +98,12 @@ public record ShoppingCart(
                     ConfirmedAt = null
                 };
             case ShoppingCartConfirmed shoppingCartConfirmed:
-                return this with { Status = ShoppingCartStatus.Confirmed, ConfirmedAt = shoppingCartConfirmed.ConfirmedAt, CanceledAt = null };
+                return this with
+                {
+                    Status = ShoppingCartStatus.Confirmed,
+                    ConfirmedAt = shoppingCartConfirmed.ConfirmedAt,
+                    CanceledAt = null
+                };
             case ShoppingCartOpened shoppingCartOpened:
                 return new ShoppingCart(
                     shoppingCartOpened.ShoppingCartId
