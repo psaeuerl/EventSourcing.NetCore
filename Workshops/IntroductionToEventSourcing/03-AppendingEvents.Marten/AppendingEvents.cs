@@ -53,8 +53,10 @@ public class GettingStateFromEventsTests
 {
     private static Task AppendEvents(IDocumentSession documentSession, Guid streamId, object[] events, CancellationToken ct)
     {
-        // TODO: Fill append events logic here.
-        throw new NotImplementedException();
+        documentSession.Events.StartStream(streamId,events);
+
+        // Save the pending changes to db
+        return documentSession.SaveChangesAsync(ct);
     }
 
     [Fact]
