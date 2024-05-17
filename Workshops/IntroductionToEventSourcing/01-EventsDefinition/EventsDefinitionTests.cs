@@ -14,6 +14,9 @@ namespace IntroductionToEventSourcing.EventsDefinition;
 //Events
 public abstract record ShoppingCartEvent
 {
+    // This won't allow external inheritance
+    private ShoppingCartEvent() { }
+
     public record ShoppingCartOpened(
         Guid ShoppingCartId,
         Guid ClientId);
@@ -25,20 +28,18 @@ public abstract record ShoppingCartEvent
     public record ShoppingCartConfirmed(Guid ShoppingCartId, DateTime ConfirmedAt);
 
     public record ShoppingCardCanceled(Guid ShoppingCartId, DateTime CanceledAt);
-
-    // This won't allow external inheritance
-    private ShoppingCartEvent() { }
 }
 
 //Value Objects
 
-public record PricedProduct(Guid ProductId, int price, int quantity)
+public record PricedProduct(Guid ProductId, int Price, int Quantity)
 {
-    public int TotalPrice => price * quantity;
+    public int TotalPrice => Price * Quantity;
 }
 
 //Entities
-public record ShoppingCart(Guid ShoppingCartId, Guid ClientId, PricedProduct[] Products, ShoppingCartStatus Status, DateTime? ConfirmedAt = null,
+public record ShoppingCart(Guid ShoppingCartId, Guid ClientId, PricedProduct[] Products, ShoppingCartStatus Status,
+    DateTime? ConfirmedAt = null,
     DateTime? CanceledAt = null);
 
 public enum ShoppingCartStatus
@@ -46,7 +47,6 @@ public enum ShoppingCartStatus
     Pending,
     Confirmed,
     Cancelled
-
 }
 
 public class EventsDefinitionTests
@@ -57,15 +57,15 @@ public class EventsDefinitionTests
     {
         var shoppingCartId = Guid.NewGuid();
         var firstProductId = Guid.NewGuid();
-        var tenCards = new PricedProduct(firstProductId,10,20);
+        var tenCards = new PricedProduct(firstProductId, 10, 20);
         var events = new object[]
         {
             // 2. Put your sample events here
-            new ShoppingCartEvent.ShoppingCartOpened(shoppingCartId,Guid.NewGuid()),
-            new ShoppingCartEvent.ProductAdded(shoppingCartId,tenCards),
-            new ShoppingCartEvent.ProductRemoved(shoppingCartId,tenCards),
-            new ShoppingCartEvent.ShoppingCartConfirmed(shoppingCartId,DateTime.Now),
-            new ShoppingCartEvent.ShoppingCardCanceled(shoppingCartId,DateTime.Now),
+            new ShoppingCartEvent.ShoppingCartOpened(shoppingCartId, Guid.NewGuid()),
+            new ShoppingCartEvent.ProductAdded(shoppingCartId, tenCards),
+            new ShoppingCartEvent.ProductRemoved(shoppingCartId, tenCards),
+            new ShoppingCartEvent.ShoppingCartConfirmed(shoppingCartId, DateTime.Now),
+            new ShoppingCartEvent.ShoppingCardCanceled(shoppingCartId, DateTime.Now)
         };
 
         const int expectedEventTypesCount = 5;
