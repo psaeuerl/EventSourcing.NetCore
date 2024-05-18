@@ -36,7 +36,8 @@ public static class ShoppingCartService
 {
     public static ShoppingCartOpened Handle(OpenShoppingCart command)
     {
-        throw new NotImplementedException("Fill the implementation part");
+        var scEvent = new ShoppingCartOpened(command.ShoppingCartId, command.ClientId);
+        return scEvent;
     }
 
     public static ProductItemAddedToShoppingCart Handle(
@@ -45,7 +46,8 @@ public static class ShoppingCartService
         ShoppingCart shoppingCart
     )
     {
-        throw new NotImplementedException("Fill the implementation part");
+        var pricedProductItem = priceCalculator.Calculate(command.ProductItem);
+        return new ProductItemAddedToShoppingCart(shoppingCart.Id, pricedProductItem);
     }
 
     public static ProductItemRemovedFromShoppingCart Handle(
@@ -53,16 +55,20 @@ public static class ShoppingCartService
         ShoppingCart shoppingCart
     )
     {
-        throw new NotImplementedException("Fill the implementation part");
+        return new ProductItemRemovedFromShoppingCart(shoppingCart.Id, command.ProductItem);
     }
 
     public static ShoppingCartConfirmed Handle(ConfirmShoppingCart command, ShoppingCart shoppingCart)
     {
-        throw new NotImplementedException("Fill the implementation part");
+        return new ShoppingCartConfirmed(shoppingCart.Id, DateTime.Now);
     }
 
     public static ShoppingCartCanceled Handle(CancelShoppingCart command, ShoppingCart shoppingCart)
     {
-        throw new NotImplementedException("Fill the implementation part");
+        if (shoppingCart.Status == ShoppingCartStatus.Confirmed)
+        {
+            throw new InvalidOperationException("Cannot Cancel because Shopping cart already confirmed");
+        }
+        return new ShoppingCartCanceled(command.ShoppingCartId, DateTime.Now);
     }
 }
