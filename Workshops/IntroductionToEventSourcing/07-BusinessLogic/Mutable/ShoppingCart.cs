@@ -89,7 +89,11 @@ public class ShoppingCart
         Guid cartId,
         Guid clientId)
     {
-        throw new NotImplementedException("Fill the implementation part");
+        var @event = new ShoppingCartOpened(cartId, clientId);
+        var cart = Initial();
+        cart.Apply(@event);
+        cart.UncommittedEvents = cart.UncommittedEvents.Append(@event).ToArray();
+        return cart;
     }
 
     private void Apply(ShoppingCartOpened opened)
@@ -104,7 +108,10 @@ public class ShoppingCart
         ProductItem productItem
     )
     {
-        throw new NotImplementedException("Fill the implementation part");
+        var pricedProductItem = priceCalculator.Calculate( productItem );
+        var @event = new ProductItemAddedToShoppingCart(Id, pricedProductItem);
+        Apply(@event);
+        UncommittedEvents = UncommittedEvents.Append(@event).ToArray();
     }
 
     private void Apply(ProductItemAddedToShoppingCart productItemAdded)
@@ -125,7 +132,9 @@ public class ShoppingCart
 
     public void RemoveProduct(PricedProductItem productItemToBeRemoved)
     {
-        throw new NotImplementedException("Fill the implementation part");
+        var @event = new ProductItemRemovedFromShoppingCart(Id, productItemToBeRemoved);
+        Apply(@event);
+        UncommittedEvents = UncommittedEvents.Append(@event).ToArray();
     }
 
     private void Apply(ProductItemRemovedFromShoppingCart productItemRemoved)
@@ -146,7 +155,9 @@ public class ShoppingCart
 
     public void Confirm()
     {
-        throw new NotImplementedException("Fill the implementation part");
+        var @event = new ShoppingCartConfirmed(Id, DateTime.Now);
+        Apply(@event);
+        UncommittedEvents = UncommittedEvents.Append(@event).ToArray();
     }
 
     private void Apply(ShoppingCartConfirmed confirmed)
@@ -157,7 +168,11 @@ public class ShoppingCart
 
     public void Cancel()
     {
-        throw new NotImplementedException("Fill the implementation part");
+        if (Status == ShoppingCartStatus.Confirmed)
+            throw new InvalidOperationException("Cannot cancel a confirmed Cart");
+        var @event = new ShoppingCartCanceled(Id, DateTime.Now);
+        Apply(@event);
+        UncommittedEvents = UncommittedEvents.Append(@event).ToArray();
     }
 
     private void Apply(ShoppingCartCanceled canceled)
