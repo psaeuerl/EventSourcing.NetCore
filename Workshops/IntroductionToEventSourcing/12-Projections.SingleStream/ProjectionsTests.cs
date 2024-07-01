@@ -57,6 +57,11 @@ public class ShoppingCartDetails
     public DateTime? CanceledAt { get; set; }
     public decimal TotalPrice { get; set; }
     public decimal TotalItemsCount { get; set; }
+
+    public void Handle(ShoppingCartOpened eventEnvelopeData)
+    {
+        throw new NotImplementedException();
+    }
 }
 
 public class ShoppingCartShortInfo
@@ -65,6 +70,100 @@ public class ShoppingCartShortInfo
     public Guid ClientId { get; set; }
     public decimal TotalPrice { get; set; }
     public decimal TotalItemsCount { get; set; }
+
+    public void Handle(ShoppingCartOpened eventEnvelopeData)
+    {
+        Id = eventEnvelopeData.ShoppingCartId;
+        ClientId = eventEnvelopeData.ClientId;
+        TotalItemsCount = 0;
+        TotalPrice = 0;
+    }
+
+    public void Handle(ProductItemAddedToShoppingCart eventEnvelopeData)
+    {
+        TotalPrice += eventEnvelopeData.ProductItem.TotalAmount;
+        TotalItemsCount += eventEnvelopeData.ProductItem.Quantity;
+    }
+
+    public void Handle(ProductItemRemovedFromShoppingCart eventEnvelopeData)
+    {
+        TotalPrice -= eventEnvelopeData.ProductItem.TotalAmount;
+        TotalItemsCount -= eventEnvelopeData.ProductItem.Quantity;
+    }
+}
+
+public class ShoppingCartShortInfoProjector
+{
+    private readonly Database _db;
+
+    public ShoppingCartShortInfoProjector(Database database)
+    {
+        _db = database;
+    }
+
+    public void Handle(EventEnvelope<ShoppingCartOpened> eventEnvelope)
+    {
+        var scsi = new ShoppingCartShortInfo();
+        scsi.Handle(eventEnvelope.Data);
+        _db.Store(scsi.Id, scsi);
+    }
+
+    public void Handle(EventEnvelope<ProductItemAddedToShoppingCart> eventEnvelope)
+    {
+        var scsi = _db.Get<ShoppingCartShortInfo>(eventEnvelope.Data.ShoppingCartId) ??
+                   throw new ArgumentNullException();
+        scsi.Handle(eventEnvelope.Data);
+        _db.Store(scsi.Id, scsi);
+    }
+
+    public void Handle(EventEnvelope<ProductItemRemovedFromShoppingCart> eventEnvelope)
+    {
+        var scsi = _db.Get<ShoppingCartShortInfo>(eventEnvelope.Data.ShoppingCartId) ??
+                   throw new ArgumentNullException();
+        scsi.Handle(eventEnvelope.Data);
+        _db.Store(scsi.Id, scsi);
+    }
+}
+
+public class ShoppingCartDetailsProjector
+{
+    private readonly Database _db;
+
+    public ShoppingCartDetailsProjector(Database database)
+    {
+        _db = database;
+    }
+
+    public void Handle(EventEnvelope<ShoppingCartOpened> eventEnvelope)
+    {
+        var scd = new ShoppingCartDetails();
+        scd.Handle(eventEnvelope.Data);
+        _db.Store(scd.Id, scd);
+    }
+
+    public void Handle(EventEnvelope<ProductItemAddedToShoppingCart> eventEnvelope)
+    {
+        var scd = _db.Get<ShoppingCartDetails>(eventEnvelope.Data.ShoppingCartId) ??
+                   throw new ArgumentNullException();
+        scd.Handle(eventEnvelope.Data);
+        _db.Store(scd.Id, scd);
+    }
+
+    public void Handle(EventEnvelope<ProductItemRemovedFromShoppingCart> eventEnvelope)
+    {
+        var scd = _db.Get<ShoppingCartDetails>(eventEnvelope.Data.ShoppingCartId) ??
+                   throw new ArgumentNullException();
+        scd.Handle(eventEnvelope.Data);
+        _db.Store(scd.Id, scd);
+    }
+
+    //public void Handle(EventEnvelope<ShoppingCartConfirmed> eventEnvelope)
+    //{
+    //    var scd = _db.Get<ShoppingCartDetails>(eventEnvelope.Data.ShoppingCartId) ??
+    //              throw new ArgumentNullException();
+    //    scd.Handle(eventEnvelope.Data);
+    //    _db.Store(scd.Id, scd);
+    //}
 }
 
 public class ProjectionsTests
@@ -96,9 +195,16 @@ public class ProjectionsTests
         var eventStore = new EventStore();
         var database = new Database();
 
+        var ShoppingCartShortInfoProjector = new ShoppingCartShortInfoProjector(database);
+        var ShoppingCartDetailsProjector = new ShoppingCartDetailsProjector(database);
         // TODO:
         // 1. Register here your event handlers using `eventBus.Register`.
         // 2. Store results in database.
+        eventStore.Register<ShoppingCartOpened>(x => ShoppingCartShortInfoProjector.Handle(x));
+        eventStore.Register<ShoppingCartOpened>(x => ShoppingCartDetailsProjector.Handle(x));
+        eventStore.Register<ProductItemAddedToShoppingCart>(x => ShoppingCartDetailsProjector.Handle(x));
+        eventStore.Register<ProductItemRemovedFromShoppingCart>(x => ShoppingCartDetailsProjector.Handle(x));
+        //eventStore.Register<ShoppingCartConfirmed>(x => ShoppingCartDetailsProjector.Handle(x));
 
         // first confirmed
         eventStore.Append(shoppingCartId, new ShoppingCartOpened(shoppingCartId, clientId));
