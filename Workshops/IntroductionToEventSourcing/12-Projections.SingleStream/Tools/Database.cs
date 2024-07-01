@@ -18,10 +18,15 @@ public class Database
 
     public T? Get<T>(Guid id) where T: class
     {
-        return storage.TryGetValue(GetId<T>(id), out var result) ?
+        var idToResolve = GetId<T>(id);
+        var value = storage.TryGetValue(idToResolve, out var result) ?
             // Clone to simulate getting new instance on loading
-            JsonSerializer.Deserialize<T>(JsonSerializer.Serialize((T)result))
+            result
             : null;
+        if (value == null)
+            return null;
+        var deserialized = JsonSerializer.Deserialize<T>(JsonSerializer.Serialize((T)result));
+        return deserialized;
     }
 
     private static string GetId<T>(Guid id) => $"{typeof(T).Name}-{id}";
