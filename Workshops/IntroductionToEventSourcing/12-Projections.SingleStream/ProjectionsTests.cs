@@ -60,7 +60,57 @@ public class ShoppingCartDetails
 
     public void Handle(ShoppingCartOpened eventEnvelopeData)
     {
-        throw new NotImplementedException();
+        Id = eventEnvelopeData.ShoppingCartId;
+        ClientId = eventEnvelopeData.ClientId;
+        Status = ShoppingCartStatus.Pending;
+    }
+
+    public void Handle(ProductItemRemovedFromShoppingCart eventEnvelopeData)
+    {
+        var product = ProductItems.Single(x => x.ProductId == eventEnvelopeData.ProductItem.ProductId);
+        var pricedProductItem = product with { Quantity = product.Quantity - eventEnvelopeData.ProductItem.Quantity };
+        ProductItems.Remove(product);
+        if (pricedProductItem.Quantity > 0)
+            ProductItems.Add(pricedProductItem);
+        UpdateTotals();
+    }
+
+    public void Handle(ProductItemAddedToShoppingCart eventEnvelopeData)
+    {
+        var product = ProductItems.SingleOrDefault(x => x.ProductId == eventEnvelopeData.ProductItem.ProductId);
+        if (product == null)
+        {
+            ProductItems.Add(eventEnvelopeData.ProductItem);
+        }
+        else
+        {
+            var pricedProductItem = product with
+            {
+                Quantity = product.Quantity + eventEnvelopeData.ProductItem.Quantity
+            };
+            ProductItems.Remove(product);
+            ProductItems.Add(pricedProductItem);
+        }
+
+        UpdateTotals();
+    }
+
+    private void UpdateTotals()
+    {
+        TotalPrice = ProductItems.Sum(x => x.TotalAmount);
+        TotalItemsCount = ProductItems.Sum(x=>x.TotalAmount);
+    }
+
+    public void Handle(ShoppingCartConfirmed eventEnvelopeData)
+    {
+        Status= ShoppingCartStatus.Confirmed;
+        ConfirmedAt = eventEnvelopeData.ConfirmedAt;
+    }
+
+    public void Handle(ShoppingCartCanceled eventEnvelopeData)
+    {
+        Status = ShoppingCartStatus.Canceled;
+        CanceledAt = eventEnvelopeData.CanceledAt;
     }
 }
 
@@ -123,6 +173,16 @@ public class ShoppingCartShortInfoProjector
         scsi.Handle(eventEnvelope.Data);
         _db.Store(scsi.Id, scsi);
     }
+
+    public void Handle(EventEnvelope<ShoppingCartConfirmed> eventEnvelope)
+    {
+        _db.Delete< ShoppingCartShortInfo>(eventEnvelope.Data.ShoppingCartId);
+    }
+
+    public void Handle(EventEnvelope<ShoppingCartCanceled> eventEnvelope)
+    {
+        _db.Delete<ShoppingCartShortInfo>(eventEnvelope.Data.ShoppingCartId);
+    }
 }
 
 public class ShoppingCartDetailsProjector
@@ -157,13 +217,21 @@ public class ShoppingCartDetailsProjector
         _db.Store(scd.Id, scd);
     }
 
-    //public void Handle(EventEnvelope<ShoppingCartConfirmed> eventEnvelope)
-    //{
-    //    var scd = _db.Get<ShoppingCartDetails>(eventEnvelope.Data.ShoppingCartId) ??
-    //              throw new ArgumentNullException();
-    //    scd.Handle(eventEnvelope.Data);
-    //    _db.Store(scd.Id, scd);
-    //}
+    public void Handle(EventEnvelope<ShoppingCartConfirmed> eventEnvelope)
+    {
+        var scd = _db.Get<ShoppingCartDetails>(eventEnvelope.Data.ShoppingCartId) ??
+                  throw new ArgumentNullException();
+        scd.Handle(eventEnvelope.Data);
+        _db.Store(scd.Id, scd);
+    }
+
+    public void Handle(EventEnvelope<ShoppingCartCanceled> eventEnvelope)
+    {
+        var scd = _db.Get<ShoppingCartDetails>(eventEnvelope.Data.ShoppingCartId) ??
+                  throw new ArgumentNullException();
+        scd.Handle(eventEnvelope.Data);
+        _db.Store(scd.Id, scd);
+    }
 }
 
 public class ProjectionsTests
@@ -201,10 +269,17 @@ public class ProjectionsTests
         // 1. Register here your event handlers using `eventBus.Register`.
         // 2. Store results in database.
         eventStore.Register<ShoppingCartOpened>(x => ShoppingCartShortInfoProjector.Handle(x));
+        eventStore.Register<ProductItemAddedToShoppingCart>(x => ShoppingCartShortInfoProjector.Handle(x));
+        eventStore.Register<ProductItemRemovedFromShoppingCart>(x => ShoppingCartShortInfoProjector.Handle(x));
+        eventStore.Register<ShoppingCartConfirmed>(x => ShoppingCartShortInfoProjector.Handle(x));
+        eventStore.Register<ShoppingCartCanceled>(x => ShoppingCartShortInfoProjector.Handle(x));
+
+
         eventStore.Register<ShoppingCartOpened>(x => ShoppingCartDetailsProjector.Handle(x));
         eventStore.Register<ProductItemAddedToShoppingCart>(x => ShoppingCartDetailsProjector.Handle(x));
         eventStore.Register<ProductItemRemovedFromShoppingCart>(x => ShoppingCartDetailsProjector.Handle(x));
-        //eventStore.Register<ShoppingCartConfirmed>(x => ShoppingCartDetailsProjector.Handle(x));
+        eventStore.Register<ShoppingCartConfirmed>(x => ShoppingCartDetailsProjector.Handle(x));
+        eventStore.Register<ShoppingCartCanceled>(x => ShoppingCartDetailsProjector.Handle(x));
 
         // first confirmed
         eventStore.Append(shoppingCartId, new ShoppingCartOpened(shoppingCartId, clientId));
